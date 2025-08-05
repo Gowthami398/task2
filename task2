@@ -1,0 +1,218 @@
+import tkinter as tk
+from tkinter import messagebox
+import math
+
+class CalculatorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Calculator - My Daily Work")
+        self.root.geometry("400x600")
+        self.root.configure(bg='#2c3e50')
+        self.root.resizable(False, False)
+        
+        # Calculator state
+        self.current_number = ""
+        self.first_number = None
+        self.operation = None
+        self.should_reset = False
+        
+        self.create_widgets()
+        
+    def create_widgets(self):
+        # Title
+        title_label = tk.Label(self.root, text="My Daily Work Calculator", 
+                             font=("Arial", 16, "bold"), bg='#2c3e50', fg='white')
+        title_label.pack(pady=10)
+        
+        # Display
+        self.display_var = tk.StringVar(value="0")
+        display_frame = tk.Frame(self.root, bg='#34495e', relief='sunken', bd=3)
+        display_frame.pack(pady=10, padx=20, fill='x')
+        
+        self.display = tk.Label(display_frame, textvariable=self.display_var, 
+                              font=("Arial", 24, "bold"), bg='#34495e', fg='white',
+                              anchor='e', padx=10, pady=10)
+        self.display.pack(fill='x')
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(self.root, bg='#2c3e50')
+        buttons_frame.pack(pady=20, padx=20, fill='both', expand=True)
+        
+        # Button configurations
+        button_configs = [
+            # Row 1
+            [("C", "#e74c3c", self.clear), ("±", "#95a5a6", self.toggle_sign), 
+             ("%", "#95a5a6", self.percentage), ("÷", "#f39c12", self.set_operation)],
+            # Row 2
+            [("7", "#34495e", self.add_digit), ("8", "#34495e", self.add_digit), 
+             ("9", "#34495e", self.add_digit), ("×", "#f39c12", self.set_operation)],
+            # Row 3
+            [("4", "#34495e", self.add_digit), ("5", "#34495e", self.add_digit), 
+             ("6", "#34495e", self.add_digit), ("-", "#f39c12", self.set_operation)],
+            # Row 4
+            [("1", "#34495e", self.add_digit), ("2", "#34495e", self.add_digit), 
+             ("3", "#34495e", self.add_digit), ("+", "#f39c12", self.set_operation)],
+            # Row 5
+            [("0", "#34495e", self.add_digit, 2), (".", "#34495e", self.add_decimal), 
+             ("=", "#27ae60", self.calculate)]
+        ]
+        
+        # Create buttons
+        for row_idx, row in enumerate(button_configs):
+            for col_idx, button_config in enumerate(row):
+                if len(button_config) == 4:  # Special case for "0" button (span 2 columns)
+                    text, color, command, colspan = button_config
+                    button = tk.Button(buttons_frame, text=text, font=("Arial", 18, "bold"),
+                                     bg=color, fg='white', relief='raised', bd=2,
+                                     command=lambda t=text, c=command: c(t))
+                    button.grid(row=row_idx, column=col_idx, columnspan=colspan, 
+                              padx=2, pady=2, sticky='nsew')
+                else:
+                    text, color, command = button_config
+                    button = tk.Button(buttons_frame, text=text, font=("Arial", 18, "bold"),
+                                     bg=color, fg='white', relief='raised', bd=2,
+                                     command=lambda t=text, c=command: c(t))
+                    button.grid(row=row_idx, column=col_idx, padx=2, pady=2, sticky='nsew')
+        
+        # Configure grid weights
+        for i in range(5):
+            buttons_frame.grid_rowconfigure(i, weight=1)
+        for i in range(4):
+            buttons_frame.grid_columnconfigure(i, weight=1)
+            
+        # History display
+        history_frame = tk.Frame(self.root, bg='#34495e', relief='sunken', bd=2)
+        history_frame.pack(pady=10, padx=20, fill='x')
+        
+        tk.Label(history_frame, text="History:", font=("Arial", 10, "bold"), 
+                bg='#34495e', fg='white').pack(anchor='w', padx=5, pady=2)
+        
+        self.history_text = tk.Text(history_frame, height=4, font=("Arial", 10),
+                                   bg='#34495e', fg='white', relief='flat')
+        self.history_text.pack(fill='x', padx=5, pady=5)
+        
+    def add_digit(self, digit):
+        if self.should_reset:
+            self.current_number = ""
+            self.should_reset = False
+            
+        if digit == "0" and self.current_number == "":
+            return
+            
+        self.current_number += digit
+        self.update_display()
+        
+    def add_decimal(self, decimal):
+        if self.should_reset:
+            self.current_number = ""
+            self.should_reset = False
+            
+        if "." not in self.current_number:
+            if self.current_number == "":
+                self.current_number = "0."
+            else:
+                self.current_number += "."
+            self.update_display()
+        
+    def clear(self, clear):
+        self.current_number = ""
+        self.first_number = None
+        self.operation = None
+        self.should_reset = False
+        self.display_var.set("0")
+        
+    def toggle_sign(self, sign):
+        if self.current_number and self.current_number != "0":
+            if self.current_number.startswith("-"):
+                self.current_number = self.current_number[1:]
+            else:
+                self.current_number = "-" + self.current_number
+            self.update_display()
+            
+    def percentage(self, percent):
+        if self.current_number:
+            try:
+                value = float(self.current_number)
+                result = value / 100
+                self.current_number = str(result)
+                self.update_display()
+            except ValueError:
+                messagebox.showerror("Error", "Invalid number!")
+                
+    def set_operation(self, op):
+        if self.current_number:
+            try:
+                self.first_number = float(self.current_number)
+                self.operation = op
+                self.should_reset = True
+                self.add_to_history(f"{self.first_number} {op}")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid number!")
+        elif self.first_number is not None:
+            # Change operation
+            self.operation = op
+            
+    def calculate(self, equals):
+        if self.first_number is not None and self.operation and self.current_number:
+            try:
+                second_number = float(self.current_number)
+                result = 0
+                
+                if self.operation == "+":
+                    result = self.first_number + second_number
+                elif self.operation == "-":
+                    result = self.first_number - second_number
+                elif self.operation == "×":
+                    result = self.first_number * second_number
+                elif self.operation == "÷":
+                    if second_number == 0:
+                        messagebox.showerror("Error", "Cannot divide by zero!")
+                        return
+                    result = self.first_number / second_number
+                    
+                # Add to history
+                self.add_to_history(f"{self.first_number} {self.operation} {second_number} = {result}")
+                
+                # Update display
+                self.current_number = str(result)
+                self.update_display()
+                
+                # Reset for next calculation
+                self.first_number = None
+                self.operation = None
+                self.should_reset = True
+                
+            except ValueError:
+                messagebox.showerror("Error", "Invalid number!")
+                
+    def update_display(self):
+        if self.current_number == "":
+            self.display_var.set("0")
+        else:
+            # Format display for better readability
+            try:
+                value = float(self.current_number)
+                if value.is_integer():
+                    self.display_var.set(str(int(value)))
+                else:
+                    self.display_var.set(self.current_number)
+            except ValueError:
+                self.display_var.set(self.current_number)
+                
+    def add_to_history(self, entry):
+        self.history_text.insert(tk.END, f"{entry}\n")
+        self.history_text.see(tk.END)
+        
+        # Limit history to last 10 entries
+        lines = self.history_text.get("1.0", tk.END).split('\n')
+        if len(lines) > 11:  # 10 entries + 1 empty line
+            self.history_text.delete("1.0", tk.END)
+            self.history_text.insert(tk.END, '\n'.join(lines[-11:]))
+
+def main():
+    root = tk.Tk()
+    app = CalculatorApp(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
